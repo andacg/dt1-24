@@ -20,6 +20,13 @@ def call_huggingface_chat_model():
     huggingface_token = req.args.get("huggingface_token")
     logging.debug(f"Huggingface API Token: {huggingface_token}")
     questions = req.args.get("input")
+    
+    # Validate required parameters
+    if not all([model_id, huggingface_token, questions]):
+        return jsonify({"error": "Missing required query parameters"}), 400
+
+    logging.debug(f"The model ID for the Huggingface model is {model_id}")
+    logging.debug(f"Huggingface API Token: {huggingface_token}")
     data = query(
         {
             "inputs": f'{questions.replace("_"," ")}',
@@ -30,9 +37,17 @@ def call_huggingface_chat_model():
         huggingface_token,
     )
     logging.debug(f"Model output: {data}")
-    output = jsonify({"ack": data[0]["generated_text"]})
+     if "error" in data:
+        return jsonify({"error": data["error"]}), 500
+    try:
+        output = jsonify({"ack": data[0]["generated_text"]})
+    except (IndexError, KeyError):
+        logging.error(f"Unexpected API response format: {data}")
+        return jsonify({"error": "Invalid API response"}), 500
+
     output.headers.add("Access-Control-Allow-Origin", "*")
     return output
+
 
 
 @app.route("/load_model")
